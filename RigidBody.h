@@ -205,14 +205,14 @@ public:
 
     int getPointConnects(int index) const {
         if (index < 0 || index >= num) {
-            throw std::out_of_range("Invalid point index");
+            throw std::out_of_range("getPointConnects: invalid point index");
         }
         return points.get(index)->getConnects();
     }
 
     int getPointNeighborIndex(int pointIndex, int neighborIndex) const {
         if (pointIndex < 0 || pointIndex >= num) {
-            throw std::out_of_range("Invalid point index");
+            throw std::out_of_range("getPointNeighborIndex: invalid point index");
         }
         MatPoint* neighbor = points.get(pointIndex)->getNeighbor(neighborIndex);
         if(!neighbor){
@@ -226,11 +226,18 @@ public:
         return -1;
     }
 
+    double getPointLinkDeformation(int pointIndex, int neighborIndex){
+        if (pointIndex < 0 || pointIndex >= num) {
+            throw std::out_of_range("getPointLinkDeformation: invalid point index");
+        }
+        return points.get(pointIndex)->getDeformation(neighborIndex);
+    }
+
     void update(int defType, double power){
-        Vector<double> brown(3), force(3), block(3);
+        Vector<double> brown(3), force(3), block(3), sBlock(3);
         static std::random_device rd;
         static std::mt19937 gen(rd());
-        std::normal_distribution<double> dist(0.0, 0.001);
+        std::normal_distribution<double> dist(0.0, 0.000000001);
         if(defType == 0){
             block.setCoord(0, 1.0);
             block.setCoord(1, 1.0);
@@ -283,14 +290,15 @@ public:
             block.setCoord(0, 1.0);
             block.setCoord(1, 1.0);
             block.setCoord(2, 1.0);
+            sBlock.setCoord(1, 1.0);
             for (int i = 0; i < num; i++) {
                 brown.setCoord(0, dist(gen));
                 brown.setCoord(1, dist(gen));
                 brown.setCoord(2, dist(gen));
                 if(i<ny*nz){
-                    points.get(i)->update(force+brown, force);
+                    points.get(i)->update(force+brown, sBlock);
                 }else if(i>=(nx-1)*ny*nz && i < nx*ny*nz){
-                    points.get(i)->update(force*(-1)+brown, force*(-1));
+                    points.get(i)->update(force*(-1)+brown, sBlock);
                 }else{
                     points.get(i)->update(brown, block);
                 }

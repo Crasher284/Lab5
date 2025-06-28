@@ -97,6 +97,15 @@ public:
         lengths.set(index, 0.0);
     }
 
+    double getDeformation(int index){
+        double d = dist(this->coords, neighbors.get(index)->coords), l = lengths.get(index);
+        if(d>=l){
+            return (d-l)/(l*(b-1));
+        }else{
+            return (d-l)/l;
+        }
+    }
+
     void update(Vector<double> force, Vector<double> block){
         this->block = block;
         Vector<double> r = force;

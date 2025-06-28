@@ -9,51 +9,45 @@ bool mouseLeftDown = false;
 bool mouseRightDown = false;
 float zoom = -10.0f;
 int phase = 0;
-double force = 0.1;
+double force = 0.0, dforce = 0.01;
 double timeSpeed = 0.01;
 
-// Инициализация RigidBody
 void initBody(int nx, int ny, int nz, double mass, double k, double b, double c, double d, Lattice type) {
     body = new RigidBody(nx, ny, nz, mass, k, b, c, d, type);
 }
 
-// Обновление физики тела
 void updatePhysics() {
     body->update(phase, force);
     body->move(timeSpeed);
     glutPostRedisplay();
 }
 
-// Функция отрисовки
-void renderScene() {
+void drawScene() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    // Позиция камеры
     glTranslatef(0.0f, 0.0f, zoom);
     glRotatef(angleX, 1.0f, 0.0f, 0.0f);
     glRotatef(angleY, 0.0f, 1.0f, 0.0f);
 
-    // Оси координат
     glBegin(GL_LINES);
-    // X - красный
+
     glColor3f(1.0f, 0.0f, 0.0f);
     glVertex3f(0.0f, 0.0f, 0.0f);
     glVertex3f(5.0f, 0.0f, 0.0f);
-    // Y - зеленый
+
     glColor3f(0.0f, 1.0f, 0.0f);
     glVertex3f(0.0f, 0.0f, 0.0f);
     glVertex3f(0.0f, 5.0f, 0.0f);
-    // Z - синий
+
     glColor3f(0.0f, 0.0f, 1.0f);
     glVertex3f(0.0f, 0.0f, 0.0f);
     glVertex3f(0.0f, 0.0f, 5.0f);
     glEnd();
 
-    // Отрисовка точек тела
     glPointSize(5.0f);
     glBegin(GL_POINTS);
-    glColor3f(1.0f, 1.0f, 1.0f); // Белый цвет для точек
+    glColor3f(1.0f, 1.0f, 1.0f);
 
     for (int i = 0; i < body->getNum(); i++) {
         Vector<double> coords = body->getPointCoords(i);
@@ -61,16 +55,20 @@ void renderScene() {
     }
     glEnd();
 
-    // Отрисовка связей между точками
     glBegin(GL_LINES);
-    glColor3f(0.5f, 0.5f, 0.5f); // Серый цвет для связей
 
     for (int i = 0; i < body->getNum(); i++) {
         Vector<double> coords1 = body->getPointCoords(i);
         for (int j = 0; j < body->getPointConnects(i); j++) {
             int neighborIdx = body->getPointNeighborIndex(i, j);
-            if (neighborIdx > i) { // Чтобы не рисовать одну связь дважды
+            if (neighborIdx > i) {
                 Vector<double> coords2 = body->getPointCoords(neighborIdx);
+                double colorK = body->getPointLinkDeformation(i, j);
+                if(colorK>=0){
+                    glColor3f(colorK, 1.0f-colorK, 0.0f);
+                }else{
+                    glColor3f(0.0f, 1.0f+colorK, -colorK);
+                }
                 glVertex3f(coords1.getCoord(0), coords1.getCoord(1), coords1.getCoord(2));
                 glVertex3f(coords2.getCoord(0), coords2.getCoord(1), coords2.getCoord(2));
             }
@@ -86,7 +84,6 @@ void renderScene() {
     glPushMatrix();
     glLoadIdentity();
 
-    // Устанавливаем цвет текста (белый)
     glColor3f(1.0f, 1.0f, 1.0f);
 
     int textPosX = 20;
@@ -119,7 +116,6 @@ void renderScene() {
 
     textPosY = glutGet(GLUT_WINDOW_HEIGHT) - 60;
 
-    // Рендерим текст
     std::string forceText = "Force: " +
                             std::to_string(force).substr(0, 4);
 
@@ -128,7 +124,6 @@ void renderScene() {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
 
-    // Возвращаемся к 3D-режиму
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
@@ -137,7 +132,6 @@ void renderScene() {
     glutSwapBuffers();
 }
 
-// Обработка изменения размеров окна
 void changeSize(int w, int h) {
     if (h == 0) h = 1;
     float ratio = w * 1.0f / h;
@@ -149,7 +143,6 @@ void changeSize(int w, int h) {
     glMatrixMode(GL_MODELVIEW);
 }
 
-// Обработка нажатий клавиш
 void processNormalKeys(unsigned char key, int x, int y) {
     if (key == 27) // ESC
         exit(0);
@@ -166,12 +159,18 @@ void processNormalKeys(unsigned char key, int x, int y) {
     else if (key == '5')
         phase = 4;
     else if (key == '+'){
-        force += 0.01;
+        if(force>=dforce*100){
+            dforce*=10;
+        }
+        force += dforce;
     }else if (key == '-'){
-        if(force - 0.01 < 0){
+        if(force<=dforce*10 && dforce>0.01){
+            dforce/=10;
+        }
+        if(force - dforce < 0){
             force = 0;
         }else{
-            force -= 0.01;
+            force -= dforce;
         }
     }else if (key == '*'){
         force = 0;
@@ -179,7 +178,6 @@ void processNormalKeys(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
-// Обработка специальных клавиш
 void processSpecialKeys(int key, int x, int y) {
     switch (key) {
         case GLUT_KEY_UP:
@@ -213,20 +211,22 @@ void mouseButton(int button, int state, int x, int y) {
         } else if (state == GLUT_UP) {
             mouseLeftDown = false;
         }
-    } else if (button == GLUT_RIGHT_BUTTON) {
-        if (state == GLUT_DOWN) {
-            lastY = y;
-            mouseRightDown = true;
-        } else if (state == GLUT_UP) {
-            mouseRightDown = false;
-        }
+    } else if (button == 3) {
+        // mousewheel up
+        if (state == GLUT_UP) return;
+        zoom += 0.5f;
+        glutPostRedisplay();
+    } else if (button == 4) {
+        // mousewheel down
+        if (state == GLUT_UP) return;
+        zoom -= 0.5f;
+        glutPostRedisplay();
     }
 }
 
 void renderStrokeString(float x, float y, void *font, const char *string) {
     glPushMatrix();
     glTranslatef(x, y, 0.0f);
-    // You can add scaling and rotation here if needed
     while (*string) {
         glutStrokeCharacter(font, *string);
         string++;
@@ -235,9 +235,8 @@ void renderStrokeString(float x, float y, void *font, const char *string) {
 }
 
 int main(int argc, char **argv) {
-    // Инициализация GLUT
-    int cnt, mass, nx, ny, nz;
-    double k, b, c, d, f;
+    int cnt, nx, ny, nz;
+    double k, mass, b, c, d, f;
     std::cout << "Enter type of crystal lattice (0 - cubic, 1 - cubic-facescentered, 2 - cubic-volumecentered):";
     std::cin >> cnt;
     if(cnt!=0 && cnt!=1 && cnt!=2){throw std::invalid_argument("Invalid input.");}
@@ -261,26 +260,18 @@ int main(int argc, char **argv) {
     std::cin >> c;
     std::cout << "Enter distance between points:";
     std::cin >> d;
-//    std::cout << "Enter type of deformation ( 0 - nothing, 1 - compression, 2 - stretching, 3 - shift, 4 - bend): ";
-//    std::cin >> cnt;
-//    if(cnt!=0 && cnt!=1 && cnt!=2 && cnt!=3 && cnt!=4){throw std::invalid_argument("Invalid input.");}
-//    std::cout << "Enter power of force : ";
-//    std::cin >> f;
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowPosition(100, 100);
     glutInitWindowSize(800, 600);
     glutCreateWindow("RigidBody Visualization");
 
-    // Инициализация OpenGL
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    // Инициализация тела
     initBody(nx, ny, nz, mass, k, b, c, d, type);
 
-    // Регистрация callback-функций
-    glutDisplayFunc(renderScene);
+    glutDisplayFunc(drawScene);
     glutReshapeFunc(changeSize);
     glutIdleFunc(updatePhysics);
     glutKeyboardFunc(processNormalKeys);
@@ -288,7 +279,6 @@ int main(int argc, char **argv) {
     glutMouseFunc(mouseButton);
     glutMotionFunc(mouseMotion);
 
-    // Главный цикл GLUT
     glutMainLoop();
 
     delete body;
