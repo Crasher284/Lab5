@@ -223,92 +223,100 @@ public:
                 return i;
             }
         }
+        return -1;
     }
 
     void update(int defType, double power){
-        Vector<double> brown(3);
+        Vector<double> brown(3), force(3), block(3);
         static std::random_device rd;
         static std::mt19937 gen(rd());
         std::normal_distribution<double> dist(0.0, 0.001);
         if(defType == 0){
+            block.setCoord(0, 1.0);
+            block.setCoord(1, 1.0);
+            block.setCoord(2, 1.0);
             for (int i = 0; i < num; i++) {
                 brown.setCoord(0, dist(gen));
                 brown.setCoord(1, dist(gen));
                 brown.setCoord(2, dist(gen));
-                points.get(i)->update(brown);
+                points.get(i)->update(brown, block);
             }
         }else if(defType == 1){
             // compression
-            Vector<double> force(3);
             force.setCoord(0, power);
-            Vector<double> aforce = force*(-1);
+            block.setCoord(0, 1.0);
+            block.setCoord(1, 1.0);
+            block.setCoord(2, 1.0);
             for (int i = 0; i < num; i++) {
                 brown.setCoord(0, dist(gen));
                 brown.setCoord(1, dist(gen));
                 brown.setCoord(2, dist(gen));
                 if(i<ny*nz){
-                    points.get(i)->update(force+brown);
+                    points.get(i)->update(force+brown, block);
                 }else if(i>=(nx-1)*ny*nz && i < nx*ny*nz){
-                    points.get(i)->update(aforce+brown);
+                    points.get(i)->update(force*(-1)+brown, block);
                 }else{
-                    points.get(i)->update(brown);
+                    points.get(i)->update(brown, block);
                 }
             }
         }else if(defType == 2){
             // stretching
-            Vector<double> force(3);
-            force.setCoord(0, -power);
-            Vector<double> aforce = force*(-1);
+            force.setCoord(0, power);
+            block.setCoord(0, 1.0);
+            block.setCoord(1, 1.0);
+            block.setCoord(2, 1.0);
             for (int i = 0; i < num; i++) {
                 brown.setCoord(0, dist(gen));
                 brown.setCoord(1, dist(gen));
                 brown.setCoord(2, dist(gen));
                 if(i<ny*nz){
-                    points.get(i)->update(force+brown);
+                    points.get(i)->update(force*(-1)+brown, block);
                 }else if(i>=(nx-1)*ny*nz && i < nx*ny*nz){
-                    points.get(i)->update(aforce+brown);
+                    points.get(i)->update(force+brown, block);
                 }else{
-                    points.get(i)->update(brown);
+                    points.get(i)->update(brown, block);
                 }
             }
         }else if(defType == 3){
             // shift
-            Vector<double> force(3);
             force.setCoord(1, power);
-            Vector<double> aforce = force*(-1);
+            block.setCoord(0, 1.0);
+            block.setCoord(1, 1.0);
+            block.setCoord(2, 1.0);
             for (int i = 0; i < num; i++) {
                 brown.setCoord(0, dist(gen));
                 brown.setCoord(1, dist(gen));
                 brown.setCoord(2, dist(gen));
                 if(i<ny*nz){
-                    points.get(i)->update(force+brown);
+                    points.get(i)->update(force+brown, force);
                 }else if(i>=(nx-1)*ny*nz && i < nx*ny*nz){
-                    points.get(i)->update(aforce+brown);
+                    points.get(i)->update(force*(-1)+brown, force*(-1));
                 }else{
-                    points.get(i)->update(brown);
+                    points.get(i)->update(brown, block);
                 }
             }
         }else if(defType == 4){
             // bend
-            Vector<double> force(3);
-            force.setCoord(1, -power);
-            Vector<double> aforce = force*(-1);
+            force.setCoord(1, power);
+            block.setCoord(0, 1.0);
+            block.setCoord(1, 1.0);
+            block.setCoord(2, 1.0);
             for (int i = 0; i < num; i++) {
                 brown.setCoord(0, dist(gen));
                 brown.setCoord(1, dist(gen));
                 brown.setCoord(2, dist(gen));
                 if(i<ny*nz){
-                    points.get(i)->update(aforce+brown);
+                    points.get(i)->update(brown, Vector<double>(3));
                 }else if(i>=(nx-1)*ny*nz && i < nx*ny*nz){
-                    points.get(i)->update(aforce+brown);
+                    points.get(i)->update(brown, Vector<double>(3));
                 }else if(nx/2==i/(ny*nz) || (nx-1)/2==i/(ny*nz)){
                     if(nx/2==(nx-1)/2){
-                        points.get(i)->update(force*2+brown);
+                        points.get(i)->update(force*2+brown, block);
                     }else{
-                        points.get(i)->update(force+brown);
+                        points.get(i)->update(force+brown, block);
                     }
                 }else{
-                    points.get(i)->update(brown);
+                    points.get(i)->update(brown, block);
                 }
             }
         }

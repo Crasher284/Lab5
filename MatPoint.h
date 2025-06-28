@@ -26,7 +26,7 @@ Vector<double> dir(Vector<double> start, Vector<double> end){
 
 class MatPoint {
 public:
-    MatPoint(int cnt, double m, double k, double b, double c) : cns(cnt), mass(m), k(k), b(b), c(c), coords(3), prevCoords(3), neighbors(cnt), lengths(cnt), a(3), v(3) {
+    MatPoint(int cnt, double m, double k, double b, double c) : cns(cnt), mass(m), k(k), b(b), c(c), coords(3), prevCoords(3), neighbors(cnt), lengths(cnt), a(3), v(3), block(3) {
         if(m<=0){
             throw std::invalid_argument("MatPoint: mass must be positive.");
         }
@@ -97,7 +97,8 @@ public:
         lengths.set(index, 0.0);
     }
 
-    void update(Vector<double> force){
+    void update(Vector<double> force, Vector<double> block){
+        this->block = block;
         Vector<double> r = force;
         for(int i=0;i<cns;i++){
             MatPoint* current = neighbors.get(i);
@@ -116,12 +117,28 @@ public:
             r += e*c*((current->v - v) * e);
         }
         a = r * (1/mass);
+        for(int i=0;i<3;i++){
+            if(block.getCoord(i)==0){
+                a.setCoord(i, 0);
+            }
+        }
     }
 
     void move(double dt){
         Vector<double> prev = coords;
-        Vector<double> next = coords*2 - prevCoords + a*dt*dt;
+        Vector<double> next = Vector<double>(3);
+        next = coords*2 - prevCoords + a*dt*dt;
+        for(int i=0;i<3;i++){
+            if(block.getCoord(i)==0){
+                next.setCoord(i, coords.getCoord(i));
+            }
+        }
         v = (next - prevCoords)*(1/(2*dt));
+        for(int i=0;i<3;i++){
+            if(block.getCoord(i)==0){
+                v.setCoord(i, 0);
+            }
+        }
         coords = next;
         prevCoords = prev;
     }
@@ -140,13 +157,14 @@ public:
         }
     }
 private:
+    bool fixed;
     int cns;
     double mass, k, b, c;
     Vector<double> coords;
     DynamicArray<MatPoint*> neighbors;
     DynamicArray<double> lengths;
 
-    Vector<double> a, v, prevCoords;
+    Vector<double> a, v, prevCoords, block;
 };
 
 #endif //LAB5_MATPOINT_H

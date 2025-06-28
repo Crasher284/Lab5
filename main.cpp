@@ -8,6 +8,9 @@ int lastX = 0, lastY = 0;
 bool mouseLeftDown = false;
 bool mouseRightDown = false;
 float zoom = -10.0f;
+int phase = 0;
+double force = 0.1;
+double timeSpeed = 0.01;
 
 // Инициализация RigidBody
 void initBody(int nx, int ny, int nz, double mass, double k, double b, double c, double d, Lattice type) {
@@ -16,8 +19,8 @@ void initBody(int nx, int ny, int nz, double mass, double k, double b, double c,
 
 // Обновление физики тела
 void updatePhysics() {
-    body->update(1, 0.05);
-    body->move(0.01);
+    body->update(phase, force);
+    body->move(timeSpeed);
     glutPostRedisplay();
 }
 
@@ -75,6 +78,62 @@ void renderScene() {
     }
     glEnd();
 
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT));
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // Устанавливаем цвет текста (белый)
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    int textPosX = 20;
+    int textPosY = glutGet(GLUT_WINDOW_HEIGHT) - 30;
+
+    std::string phaseText;
+
+    switch (phase){
+        case 0:
+            phaseText = "Deformation: none";
+            break;
+        case 1:
+            phaseText = "Deformation: compression";
+            break;
+        case 2:
+            phaseText = "Deformation: stretching";
+            break;
+        case 3:
+            phaseText = "Deformation: shift";
+            break;
+        case 4:
+            phaseText = "Deformation: bend";
+            break;
+    }
+
+    glRasterPos2i(textPosX, textPosY);
+    for (char c : phaseText) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+
+    textPosY = glutGet(GLUT_WINDOW_HEIGHT) - 60;
+
+    // Рендерим текст
+    std::string forceText = "Force: " +
+                            std::to_string(force).substr(0, 4);
+
+    glRasterPos2i(textPosX, textPosY);
+    for (char c : forceText) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
+
+    // Возвращаемся к 3D-режиму
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+
     glutSwapBuffers();
 }
 
@@ -96,9 +155,27 @@ void processNormalKeys(unsigned char key, int x, int y) {
         exit(0);
     else if (key == 'r' || key == 'R') // Сброс
         angleX = angleY = 0.0f;
-    else if (key == ' ') // Пауза/продолжение
-        glutIdleFunc(updatePhysics);
-
+    else if (key == '1')
+        phase = 0;
+    else if (key == '2')
+        phase = 1;
+    else if (key == '3')
+        phase = 2;
+    else if (key == '4')
+        phase = 3;
+    else if (key == '5')
+        phase = 4;
+    else if (key == '+'){
+        force += 0.01;
+    }else if (key == '-'){
+        if(force - 0.01 < 0){
+            force = 0;
+        }else{
+            force -= 0.01;
+        }
+    }else if (key == '*'){
+        force = 0;
+    }
     glutPostRedisplay();
 }
 
@@ -106,22 +183,6 @@ void processNormalKeys(unsigned char key, int x, int y) {
 void processSpecialKeys(int key, int x, int y) {
     switch (key) {
         case GLUT_KEY_UP:
-            angleX -= 5.0f;
-            break;
-        case GLUT_KEY_DOWN:
-            angleX += 5.0f;
-            break;
-        case GLUT_KEY_LEFT:
-            angleY -= 5.0f;
-            break;
-        case GLUT_KEY_RIGHT:
-            angleY += 5.0f;
-            break;
-        case GLUT_KEY_PAGE_UP:
-            zoom += 0.5f;
-            break;
-        case GLUT_KEY_PAGE_DOWN:
-            zoom -= 0.5f;
             break;
     }
     glutPostRedisplay();
@@ -160,6 +221,17 @@ void mouseButton(int button, int state, int x, int y) {
             mouseRightDown = false;
         }
     }
+}
+
+void renderStrokeString(float x, float y, void *font, const char *string) {
+    glPushMatrix();
+    glTranslatef(x, y, 0.0f);
+    // You can add scaling and rotation here if needed
+    while (*string) {
+        glutStrokeCharacter(font, *string);
+        string++;
+    }
+    glPopMatrix();
 }
 
 int main(int argc, char **argv) {
