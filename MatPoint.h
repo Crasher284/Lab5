@@ -106,8 +106,8 @@ public:
         }
     }
 
-    void update(Vector<double> force, Vector<double> block){
-        this->block = block;
+    void update(Vector<double> force, Vector<double> blck){
+        block = blck;
         Vector<double> r = force;
         for(int i=0;i<cns;i++){
             MatPoint* current = neighbors.get(i);
@@ -166,7 +166,6 @@ public:
         }
     }
 private:
-    bool fixed;
     int cns;
     double mass, k, b, c;
     Vector<double> coords;

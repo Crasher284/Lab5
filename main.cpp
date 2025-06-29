@@ -144,9 +144,9 @@ void changeSize(int w, int h) {
 }
 
 void processNormalKeys(unsigned char key, int x, int y) {
-    if (key == 27) // ESC
+    if (key == 27)
         exit(0);
-    else if (key == 'r' || key == 'R') // Сброс
+    else if (key == 'r' || key == 'R')
         angleX = angleY = 0.0f;
     else if (key == '1')
         phase = 0;
@@ -186,17 +186,11 @@ void processSpecialKeys(int key, int x, int y) {
     glutPostRedisplay();
 }
 
-// Обработка мыши
 void mouseMotion(int x, int y) {
     if (mouseLeftDown) {
         angleY += (x - lastX);
         angleX += (y - lastY);
         lastX = x;
-        lastY = y;
-        glutPostRedisplay();
-    }
-    if (mouseRightDown) {
-        zoom += (y - lastY) * 0.1f;
         lastY = y;
         glutPostRedisplay();
     }
