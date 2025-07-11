@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
     std::cin >> ny;
     std::cout << "Enter size of body (by z):";
     std::cin >> nz;
-    std::cout << "Enter elasticy of body: ";
+    std::cout << "Enter density of body: ";
     std::cin >> k;
     std::cout << "Enter unbreakability of body:";
     std::cin >> b;
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowPosition(100, 100);
     glutInitWindowSize(800, 600);
-    glutCreateWindow("RigidBody Visualization");
+    glutCreateWindow("RigidBody visualization");
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
