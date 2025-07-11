@@ -8,15 +8,15 @@
 #include "Vector.h"
 #include "DynamicArray.h"
 
-Vector<double> operator-(Vector<double> x, Vector<double> y){
+Vector<double> operator-(const Vector<double>& x, const Vector<double>& y){
     return x + (y * -1.0);
 }
 
-double dist(Vector<double> point, Vector<double> other){
+double dist(const Vector<double>& point, const Vector<double>& other){
     return (point - other).norm();
 }
 
-Vector<double> dir(Vector<double> start, Vector<double> end){
+Vector<double> dir(const Vector<double>& start, const Vector<double>& end){
     Vector<double> vec = end - start;
     if(vec.norm()==0){
         throw std::invalid_argument("dir: zero vector don't have direction.");
@@ -26,11 +26,11 @@ Vector<double> dir(Vector<double> start, Vector<double> end){
 
 class MatPoint {
 public:
-    MatPoint(int cnt, double m, double k, double b, double c) : cns(cnt), mass(m), k(k), b(b), c(c), coords(3), prevCoords(3), neighbors(cnt), lengths(cnt), a(3), v(3), block(3) {
+    MatPoint(int cnt, double m, double d, double u, double v) : cns(cnt), mass(m), dens(d), unbreak(u), viscos(v), coords(3), prevCoords(3), neighbors(cnt), lengths(cnt), a(3), v(3), block(3) {
         if(m<=0){
             throw std::invalid_argument("MatPoint: mass must be positive.");
         }
-        if(k<0 || b<0 || c<0){
+        if(d < 0 || u < 0 || v < 0){
             throw std::invalid_argument("MatPoint: params cannot be negative.");
         }
         for(int i=0;i<cns;i++){
@@ -38,7 +38,7 @@ public:
         }
     }
 
-    MatPoint(int cnt, double m, double k, double b, double c, double x, double y, double z) : MatPoint(cnt, m, k, b, c) {
+    MatPoint(int cnt, double m, double d, double u, double v, double x, double y, double z) : MatPoint(cnt, m, d, u, v) {
         coords.setCoord(0, x);
         coords.setCoord(1, y);
         coords.setCoord(2, z);
@@ -46,19 +46,11 @@ public:
     }
 
 
-    Vector<double> getCoords() const{
+    [[nodiscard]] Vector<double> getCoords() const{
         return coords;
     }
 
-    Vector<double> getSpeed() const{
-        return v;
-    }
-
-    Vector<double> getAcceleration() const{
-        return a;
-    }
-
-    int getConnects() const{
+    [[nodiscard]] int getConnects() const{
         int cnt = 0;
         for(int i=0;i<cns;i++){
             if(neighbors.get(i)){
@@ -68,13 +60,21 @@ public:
         return cnt;
     }
 
-    MatPoint* getNeighbor(int i) const{
+    [[nodiscard]] MatPoint* getNeighbor(int i) const{
         return neighbors.get(i);
     }
 
     void link(MatPoint* other){
+        if(other == nullptr){
+            throw std::invalid_argument("link: null pointer was given.");
+        }else if(other == this){
+            throw std::invalid_argument("link: MatPoint cannot be linked to itself.");
+        }
         for(int i=0;i<cns;i++){
             MatPoint* current = neighbors.get(i);
+            if(current == other){
+                throw std::invalid_argument("link: points already linked.");
+            }
             if(!current){
                 neighbors.set(i, other);
                 lengths.set(i, dist(this->coords, other->getCoords()));
@@ -98,15 +98,18 @@ public:
     }
 
     double getDeformation(int index){
-        double d = dist(this->coords, neighbors.get(index)->coords), l = lengths.get(index);
-        if(d>=l){
-            return (d-l)/(l*(b-1));
+        if(index < 0 || index >= cns){
+            throw std::out_of_range("getDeformation: point doesn't have such index.");
+        }
+        double dst = dist(this->coords, neighbors.get(index)->coords), l = lengths.get(index);
+        if(dst >= l){
+            return (dst - l) / (l * (unbreak - 1));
         }else{
-            return (d-l)/l;
+            return (dst - l) / l;
         }
     }
 
-    void update(Vector<double> force, Vector<double> blck){
+    void update(const Vector<double>& force, const Vector<double>& blck){
         block = blck;
         Vector<double> r = force;
         for(int i=0;i<cns;i++){
@@ -114,16 +117,16 @@ public:
             if(!current){
                 continue;
             }
-            double d = dist(this->coords, current->coords);
+            double dst = dist(this->coords, current->coords);
             Vector<double> e = dir(this->coords, current->coords);
-            if(d>=lengths.get(i)*b){
+            if(dst >= lengths.get(i) * unbreak){
                 unlink(i);
                 continue;
             }
-            // elasticy
-            r += e*k*(d-lengths.get(i));
+            // density
+            r += e * dens * (dst - lengths.get(i));
             // viscosity
-            r += e*c*((current->v - v) * e);
+            r += e * viscos * ((current->v - v) * e);
         }
         a = r * (1/mass);
         for(int i=0;i<3;i++){
@@ -134,6 +137,9 @@ public:
     }
 
     void move(double dt){
+        if(dt<=0){
+            throw std::invalid_argument("move: dt must be positive.");
+        }
         Vector<double> prev = coords;
         Vector<double> next = Vector<double>(3);
         next = coords*2 - prevCoords + a*dt*dt;
@@ -167,7 +173,7 @@ public:
     }
 private:
     int cns;
-    double mass, k, b, c;
+    double mass, dens, unbreak, viscos;
     Vector<double> coords;
     DynamicArray<MatPoint*> neighbors;
     DynamicArray<double> lengths;
